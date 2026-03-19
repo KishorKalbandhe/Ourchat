@@ -1,1 +1,259 @@
-hello
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
+<meta name="apple-mobile-web-app-capable" content="yes"/>
+<meta name="mobile-web-app-capable" content="yes"/>
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
+<title>Our Chat 💌</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet"/>
+<style>
+  :root {
+    --bg: #0d0d14;
+    --surface: #14141f;
+    --surface2: #1c1c2e;
+    --accent: #ff4d7e;
+    --accent2: #ff8fa3;
+    --text: #f0e6ff;
+    --text2: #8b85a0;
+    --bubble-me: #ff4d7e;
+    --bubble-them: #1c1c2e;
+    --radius: 20px;
+  }
+  * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  html,body { height:100%; overflow:hidden; background:var(--bg); font-family:'DM Sans',sans-serif; color:var(--text); }
+  .screen { position:fixed; inset:0; display:flex; flex-direction:column; transition:opacity .3s, transform .3s; }
+  .screen.hidden { opacity:0; pointer-events:none; transform:translateY(20px); }
+  #authScreen { background: radial-gradient(ellipse at 30% 20%, #2a0a1f 0%, #0d0d14 60%); justify-content: center; align-items: center; padding: 32px 24px; }
+  .auth-glow { position:absolute; top:15%; left:50%; transform:translateX(-50%); width:200px; height:200px; border-radius:50%; background: radial-gradient(circle, rgba(255,77,126,0.25) 0%, transparent 70%); pointer-events:none; }
+  .auth-card { width:100%; max-width:360px; z-index:1; background: rgba(20,20,31,0.9); border: 1px solid rgba(255,77,126,0.2); border-radius:28px; padding:36px 28px; backdrop-filter: blur(20px); box-shadow: 0 0 60px rgba(255,77,126,0.1); }
+  .auth-logo { text-align:center; margin-bottom:28px; }
+  .auth-logo .heart { font-size:52px; display:block; animation: heartbeat 2s ease infinite; }
+  @keyframes heartbeat { 0%,100%{transform:scale(1)} 15%{transform:scale(1.2)} 30%{transform:scale(1)} }
+  .auth-logo h1 { font-family:'DM Serif Display',serif; font-size:32px; color:var(--text); margin-top:8px; }
+  .auth-logo p { color:var(--accent2); font-size:13px; margin-top:4px; letter-spacing:.05em; }
+  .tab-row { display:flex; background:var(--surface2); border-radius:12px; padding:4px; margin-bottom:24px; }
+  .tab-btn { flex:1; padding:10px; border:none; background:none; color:var(--text2); font-family:'DM Sans',sans-serif; font-size:14px; font-weight:500; border-radius:9px; cursor:pointer; transition:.2s; }
+  .tab-btn.active { background:var(--accent); color:#fff; }
+  .field { margin-bottom:14px; }
+  .field input { width:100%; padding:14px 16px; border-radius:12px; background:var(--surface2); border:1.5px solid transparent; color:var(--text); font-family:'DM Sans',sans-serif; font-size:15px; outline:none; transition:.2s; }
+  .field input:focus { border-color:var(--accent); }
+  .field input::placeholder { color:var(--text2); }
+  .auth-btn { width:100%; padding:15px; border:none; border-radius:13px; background: linear-gradient(135deg, #ff4d7e, #ff8157); color:#fff; font-family:'DM Sans',sans-serif; font-size:16px; font-weight:600; cursor:pointer; margin-top:4px; box-shadow: 0 4px 20px rgba(255,77,126,0.4); transition:.2s; }
+  .auth-btn:active { transform:scale(0.97); }
+  .auth-error { color:#ff6b6b; font-size:13px; text-align:center; margin-top:10px; min-height:18px; }
+  #chatScreen { background:var(--bg); }
+  .chat-header { display:flex; align-items:center; gap:12px; padding:16px 16px 12px; padding-top:max(16px, env(safe-area-inset-top)); background: linear-gradient(180deg, var(--surface) 0%, transparent 100%); border-bottom:1px solid rgba(255,77,126,0.1); flex-shrink:0; }
+  .chat-header-info { flex:1; }
+  .chat-header h2 { font-family:'DM Serif Display',serif; font-size:22px; }
+  .chat-header p { color:var(--accent2); font-size:12px; }
+  .header-btns { display:flex; gap:8px; }
+  .hbtn { width:40px; height:40px; border-radius:50%; border:none; background:var(--surface2); color:var(--text); font-size:18px; cursor:pointer; display:flex; align-items:center; justify-content:center; transition:.15s; }
+  .hbtn:active { background:var(--accent); transform:scale(0.92); }
+  .messages-wrap { flex:1; overflow-y:auto; padding:16px 14px; display:flex; flex-direction:column; gap:6px; scroll-behavior:smooth; }
+  .messages-wrap::-webkit-scrollbar { display:none; }
+  .day-label { text-align:center; color:var(--text2); font-size:11px; margin:10px 0 4px; }
+  .msg-row { display:flex; flex-direction:column; }
+  .msg-row.me { align-items:flex-end; }
+  .msg-row.them { align-items:flex-start; }
+  .bubble { max-width:78%; padding:11px 14px; border-radius:18px; position:relative; word-break:break-word; line-height:1.45; font-size:15px; animation: popIn .18s ease; }
+  @keyframes popIn { from{opacity:0;transform:scale(0.92)} to{opacity:1;transform:scale(1)} }
+  .me .bubble { background:var(--bubble-me); color:#fff; border-bottom-right-radius:5px; }
+  .them .bubble { background:var(--bubble-them); color:var(--text); border-bottom-left-radius:5px; border:1px solid rgba(255,255,255,0.06); }
+  .bubble-img { max-width:220px; max-height:260px; border-radius:12px; display:block; object-fit:cover; }
+  .bubble-time { font-size:10px; opacity:.55; margin-top:4px; text-align:right; }
+  .them .bubble-time { text-align:left; }
+  .input-bar { display:flex; align-items:flex-end; gap:8px; padding:10px 12px; padding-bottom:max(10px, env(safe-area-inset-bottom)); background:var(--surface); border-top:1px solid rgba(255,255,255,0.05); flex-shrink:0; }
+  .input-bar textarea { flex:1; background:var(--surface2); border:1.5px solid transparent; border-radius:22px; padding:10px 16px; color:var(--text); font-family:'DM Sans',sans-serif; font-size:15px; outline:none; resize:none; max-height:110px; line-height:1.4; transition:.2s; }
+  .input-bar textarea:focus { border-color:rgba(255,77,126,0.4); }
+  .input-bar textarea::placeholder { color:var(--text2); }
+  .ibtn { width:42px; height:42px; border-radius:50%; border:none; background:var(--surface2); color:var(--text); font-size:19px; cursor:pointer; flex-shrink:0; display:flex; align-items:center; justify-content:center; transition:.15s; }
+  .ibtn.send { background:var(--accent); box-shadow:0 2px 12px rgba(255,77,126,0.4); }
+  .ibtn:active { transform:scale(0.90); }
+  #photoInput { display:none; }
+  #callScreen { background:#050509; justify-content:center; align-items:center; }
+  #remoteVideo, #localVideo { position:absolute; border-radius:16px; background:#111; object-fit:cover; }
+  #remoteVideo { inset:0; width:100%; height:100%; border-radius:0; }
+  #localVideo { bottom:130px; right:16px; width:90px; height:120px; border:2px solid var(--accent); z-index:2; }
+  .call-overlay { position:absolute; inset:0; z-index:3; display:flex; flex-direction:column; justify-content:space-between; padding:60px 24px 50px; background:linear-gradient(180deg, rgba(0,0,0,.6) 0%, transparent 35%, transparent 60%, rgba(0,0,0,.7) 100%); }
+  .call-top { text-align:center; }
+  .call-top h2 { font-family:'DM Serif Display',serif; font-size:26px; color:#fff; }
+  .call-top p { color:rgba(255,255,255,.6); font-size:14px; margin-top:4px; }
+  .call-controls { display:flex; justify-content:center; align-items:center; gap:20px; }
+  .cbtn { width:56px; height:56px; border-radius:50%; border:none; background:rgba(255,255,255,.18); backdrop-filter:blur(10px); color:#fff; font-size:22px; cursor:pointer; display:flex; align-items:center; justify-content:center; transition:.15s; }
+  .cbtn:active{transform:scale(0.88)}
+  .cbtn.end { background:#ff3b30; width:64px; height:64px; font-size:26px; box-shadow:0 4px 20px rgba(255,59,48,.5); }
+  .cbtn.active-mute { background:rgba(255,77,126,.5); }
+  .voice-animation { display:flex; align-items:center; justify-content:center; gap:4px; margin:20px 0; }
+  .vbar { width:4px; border-radius:4px; background:var(--accent); animation:voiceBar 1s ease-in-out infinite; }
+  .vbar:nth-child(1){height:16px;animation-delay:0s} .vbar:nth-child(2){height:32px;animation-delay:.1s} .vbar:nth-child(3){height:48px;animation-delay:.2s} .vbar:nth-child(4){height:32px;animation-delay:.3s} .vbar:nth-child(5){height:16px;animation-delay:.4s}
+  @keyframes voiceBar { 0%,100%{transform:scaleY(.4);opacity:.5} 50%{transform:scaleY(1);opacity:1} }
+  .toast { position:fixed; bottom:80px; left:50%; transform:translateX(-50%) translateY(10px); background:rgba(30,30,46,0.95); color:var(--text); padding:10px 20px; border-radius:20px; font-size:13px; z-index:999; opacity:0; transition:.3s; pointer-events:none; border:1px solid rgba(255,77,126,.2); white-space:nowrap; }
+  .toast.show { opacity:1; transform:translateX(-50%) translateY(0); }
+  .modal-bg { position:fixed; inset:0; background:rgba(0,0,0,.8); z-index:100; display:flex; align-items:center; justify-content:center; padding:20px; }
+  .modal-bg.hidden { display:none; }
+  .modal { background:var(--surface); border-radius:24px; padding:28px 24px; max-width:380px; width:100%; border:1px solid rgba(255,77,126,.2); box-shadow:0 0 80px rgba(255,77,126,.15); }
+  .modal h3 { font-family:'DM Serif Display',serif; font-size:22px; margin-bottom:8px; }
+  .modal p { color:var(--text2); font-size:13px; line-height:1.6; margin-bottom:16px; }
+  .modal input { width:100%; padding:12px 14px; background:var(--surface2); border:1.5px solid transparent; border-radius:11px; color:var(--text); font-family:'DM Sans',sans-serif; font-size:14px; outline:none; margin-bottom:10px; transition:.2s; }
+  .modal input:focus { border-color:var(--accent); }
+  .modal-btn { width:100%; padding:14px; border:none; border-radius:12px; background:linear-gradient(135deg,#ff4d7e,#ff8157); color:#fff; font-family:'DM Sans',sans-serif; font-size:15px; font-weight:600; cursor:pointer; margin-top:4px; }
+  .modal-note { font-size:11px; color:var(--text2); text-align:center; margin-top:12px; line-height:1.5; }
+  .step { display:flex; align-items:flex-start; gap:10px; margin-bottom:10px; }
+  .step-num { background:var(--accent); color:#fff; width:22px; height:22px; border-radius:50%; font-size:12px; font-weight:700; display:flex; align-items:center; justify-content:center; flex-shrink:0; margin-top:1px; }
+  .step-txt { color:var(--text2); font-size:13px; line-height:1.5; }
+  .step-txt a { color:var(--accent2); }
+</style>
+</head>
+<body>
+<div class="modal-bg" id="setupModal">
+  <div class="modal">
+    <h3>⚙️ One-time Setup</h3>
+    <p>This app needs a free Firebase project to store your messages. It only takes 5 minutes!</p>
+    <div class="step"><div class="step-num">1</div><div class="step-txt">Go to <a href="https://console.firebase.google.com" target="_blank">console.firebase.google.com</a> and create a free project</div></div>
+    <div class="step"><div class="step-num">2</div><div class="step-txt">Add a <b>Web App</b> to your project and copy the <b>firebaseConfig</b> values</div></div>
+    <div class="step"><div class="step-num">3</div><div class="step-txt">Enable <b>Firestore Database</b> and <b>Authentication → Email/Password</b></div></div>
+    <div class="step"><div class="step-num">4</div><div class="step-txt">Paste your config values below</div></div>
+    <input id="cfg_apiKey" placeholder="apiKey"/>
+    <input id="cfg_authDomain" placeholder="authDomain (e.g. yourapp.firebaseapp.com)"/>
+    <input id="cfg_projectId" placeholder="projectId"/>
+    <input id="cfg_storageBucket" placeholder="storageBucket (e.g. yourapp.appspot.com)"/>
+    <input id="cfg_appId" placeholder="appId"/>
+    <button class="modal-btn" onclick="saveConfig()">Save & Launch App 💌</button>
+    <p class="modal-note">Your config is saved only on this device.<br/>Share this HTML file + your config with her so she can do the same.</p>
+  </div>
+</div>
+<div class="screen" id="authScreen">
+  <div class="auth-glow"></div>
+  <div class="auth-card">
+    <div class="auth-logo">
+      <span class="heart">💌</span>
+      <h1>Our Chat</h1>
+      <p>Just the two of us</p>
+    </div>
+    <div class="tab-row">
+      <button class="tab-btn active" onclick="switchTab('login')">Sign In</button>
+      <button class="tab-btn" onclick="switchTab('signup')">Sign Up</button>
+    </div>
+    <div id="nameField" class="field" style="display:none">
+      <input type="text" id="nameInput" placeholder="Your name"/>
+    </div>
+    <div class="field"><input type="email" id="emailInput" placeholder="Email"/></div>
+    <div class="field"><input type="password" id="passInput" placeholder="Password"/></div>
+    <button class="auth-btn" id="authBtn" onclick="handleAuth()">Sign In</button>
+    <div class="auth-error" id="authError"></div>
+  </div>
+</div>
+<div class="screen hidden" id="chatScreen">
+  <div class="chat-header">
+    <div style="font-size:28px">💌</div>
+    <div class="chat-header-info">
+      <h2>Our Chat</h2>
+      <p id="onlineStatus">Just the two of us ✨</p>
+    </div>
+    <div class="header-btns">
+      <button class="hbtn" onclick="startCall('voice')">📞</button>
+      <button class="hbtn" onclick="startCall('video')">📹</button>
+      <button class="hbtn" onclick="signOut()">🚪</button>
+    </div>
+  </div>
+  <div class="messages-wrap" id="messagesWrap"></div>
+  <div class="input-bar">
+    <input type="file" id="photoInput" accept="image/*" onchange="sendPhoto(this)"/>
+    <button class="ibtn" onclick="document.getElementById('photoInput').click()">📎</button>
+    <textarea id="msgInput" placeholder="Type something sweet..." rows="1" oninput="autoResize(this)" onkeydown="handleKey(event)"></textarea>
+    <button class="ibtn send" onclick="sendMessage()">➤</button>
+  </div>
+</div>
+<div class="screen hidden" id="callScreen">
+  <video id="remoteVideo" autoplay playsinline></video>
+  <video id="localVideo" autoplay playsinline muted></video>
+  <div class="call-overlay">
+    <div class="call-top">
+      <h2 id="callTitle">Video Call 💕</h2>
+      <p id="callStatus">Connecting...</p>
+    </div>
+    <div class="voice-animation" id="voiceAnim" style="display:none">
+      <div class="vbar"></div><div class="vbar"></div><div class="vbar"></div><div class="vbar"></div><div class="vbar"></div>
+    </div>
+    <div class="call-controls">
+      <button class="cbtn" id="muteBtn" onclick="toggleMute()">🎤</button>
+      <button class="cbtn end" onclick="endCall()">📵</button>
+      <button class="cbtn" id="camBtn" onclick="toggleCamera()">📷</button>
+    </div>
+  </div>
+</div>
+<div class="toast" id="toast"></div>
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut as fbSignOut, onAuthStateChanged, updateProfile } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+import { getFirestore, collection, addDoc, query, orderBy, onSnapshot, serverTimestamp, doc, setDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+import { getStorage, ref, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-storage.js";
+function loadConfig() { try { return JSON.parse(localStorage.getItem('ourchat_cfg') || 'null'); } catch { return null; } }
+const cfg = loadConfig();
+if (!cfg) { document.getElementById('setupModal').classList.remove('hidden'); } else { init(cfg); }
+window.saveConfig = function() {
+  const c = { apiKey: document.getElementById('cfg_apiKey').value.trim(), authDomain: document.getElementById('cfg_authDomain').value.trim(), projectId: document.getElementById('cfg_projectId').value.trim(), storageBucket: document.getElementById('cfg_storageBucket').value.trim(), appId: document.getElementById('cfg_appId').value.trim() };
+  if (!c.apiKey || !c.authDomain || !c.projectId) { alert('Please fill in all fields'); return; }
+  localStorage.setItem('ourchat_cfg', JSON.stringify(c));
+  document.getElementById('setupModal').classList.add('hidden');
+  init(c);
+};
+function init(config) {
+  const app = initializeApp(config);
+  const auth = getAuth(app);
+  const db = getFirestore(app);
+  const storage = getStorage(app);
+  let currentUser = null, isLoginMode = true, unsubMessages = null, localStream = null, isMuted = false, isCamOff = false, currentCallType = null;
+  onAuthStateChanged(auth, user => { currentUser = user; if (user) { show('chatScreen'); hide('authScreen'); loadMessages(); } else { show('authScreen'); hide('chatScreen'); hide('callScreen'); } });
+  window.handleAuth = async function() {
+    const email = document.getElementById('emailInput').value.trim(), pass = document.getElementById('passInput').value, name = document.getElementById('nameInput').value.trim(), errEl = document.getElementById('authError');
+    errEl.textContent = '';
+    if (!email || !pass) { errEl.textContent = 'Please fill in all fields'; return; }
+    const btn = document.getElementById('authBtn'); btn.textContent = '...';
+    try {
+      if (isLoginMode) { await signInWithEmailAndPassword(auth, email, pass); }
+      else { if (!name) { errEl.textContent = 'Enter your name'; btn.textContent='Create Account'; return; } const cred = await createUserWithEmailAndPassword(auth, email, pass); await updateProfile(cred.user, { displayName: name }); await setDoc(doc(db, 'users', cred.user.uid), { uid: cred.user.uid, name, email }); }
+    } catch (e) { errEl.textContent = e.message.replace('Firebase: ','').replace(/\(.*\)/,''); }
+    btn.textContent = isLoginMode ? 'Sign In' : 'Create Account';
+  };
+  window.signOut = async function() { if (unsubMessages) unsubMessages(); await fbSignOut(auth); };
+  window.switchTab = function(mode) { isLoginMode = mode==='login'; document.querySelectorAll('.tab-btn').forEach((b,i)=>b.classList.toggle('active',i===(isLoginMode?0:1))); document.getElementById('nameField').style.display=isLoginMode?'none':'block'; document.getElementById('authBtn').textContent=isLoginMode?'Sign In':'Create Account'; document.getElementById('authError').textContent=''; };
+  function loadMessages() {
+    if (unsubMessages) unsubMessages();
+    const q = query(collection(db,'messages'), orderBy('createdAt','asc'));
+    unsubMessages = onSnapshot(q, snap => {
+      const wrap = document.getElementById('messagesWrap'); wrap.innerHTML=''; let lastDate='';
+      snap.forEach(d => {
+        const msg=d.data(), isMe=msg.senderId===currentUser?.uid, date=msg.createdAt?.toDate?.() || new Date(), dateStr=date.toLocaleDateString();
+        if (dateStr!==lastDate) { lastDate=dateStr; const dl=document.createElement('div'); dl.className='day-label'; dl.textContent=dateStr===new Date().toLocaleDateString()?'Today':dateStr; wrap.appendChild(dl); }
+        const row=document.createElement('div'); row.className=`msg-row ${isMe?'me':'them'}`;
+        const bubble=document.createElement('div'); bubble.className='bubble';
+        if (msg.type==='image') { const img=document.createElement('img'); img.src=msg.imageUrl; img.className='bubble-img'; img.onclick=()=>window.open(msg.imageUrl,'_blank'); bubble.appendChild(img); }
+        else { bubble.textContent=msg.text; }
+        const time=document.createElement('div'); time.className='bubble-time'; time.textContent=date.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}); bubble.appendChild(time); row.appendChild(bubble); wrap.appendChild(row);
+      });
+      wrap.scrollTop=wrap.scrollHeight;
+    });
+  }
+  window.sendMessage = async function() { const input=document.getElementById('msgInput'), text=input.value.trim(); if (!text||!currentUser) return; input.value=''; input.style.height=''; await addDoc(collection(db,'messages'),{text,type:'text',senderId:currentUser.uid,senderName:currentUser.displayName||currentUser.email,createdAt:serverTimestamp()}); };
+  window.sendPhoto = async function(input) { const file=input.files[0]; if (!file||!currentUser) return; showToast('Sending photo...'); try { const r=ref(storage,`photos/${Date.now()}_${file.name}`); await uploadBytes(r,file); const imageUrl=await getDownloadURL(r); await addDoc(collection(db,'messages'),{imageUrl,type:'image',senderId:currentUser.uid,senderName:currentUser.displayName||currentUser.email,createdAt:serverTimestamp()}); } catch(e){showToast('Failed to send photo');} input.value=''; };
+  window.handleKey = function(e) { if (e.key==='Enter'&&!e.shiftKey){e.preventDefault();sendMessage();} };
+  window.autoResize = function(el) { el.style.height='auto'; el.style.height=Math.min(el.scrollHeight,110)+'px'; };
+  window.startCall = async function(type) {
+    currentCallType=type; document.getElementById('callTitle').textContent=type==='video'?'📹 Video Call':'📞 Voice Call'; document.getElementById('callStatus').textContent='Starting...'; document.getElementById('voiceAnim').style.display=type==='voice'?'flex':'none'; document.getElementById('remoteVideo').style.display=type==='video'?'block':'none'; document.getElementById('localVideo').style.display=type==='video'?'block':'none'; document.getElementById('camBtn').style.display=type==='video'?'flex':'none';
+    show('callScreen');
+    try { localStream=await navigator.mediaDevices.getUserMedia({video:type==='video',audio:true}); if(type==='video'){document.getElementById('localVideo').srcObject=localStream;} document.getElementById('callStatus').textContent='Connected (local preview)'; showToast('Share this page with her & both tap call to connect!'); }
+    catch(e){document.getElementById('callStatus').textContent='Could not access camera/mic'; showToast('Please allow camera & microphone access');}
+  };
+  window.toggleMute = function() { isMuted=!isMuted; localStream?.getAudioTracks().forEach(t=>t.enabled=!isMuted); document.getElementById('muteBtn').textContent=isMuted?'🔇':'🎤'; document.getElementById('muteBtn').classList.toggle('active-mute',isMuted); };
+  window.toggleCamera = function() { isCamOff=!isCamOff; localStream?.getVideoTracks().forEach(t=>t.enabled=!isCamOff); document.getElementById('camBtn').textContent=isCamOff?'🚫':'📷'; };
+  window.endCall = function() { localStream?.getTracks().forEach(t=>t.stop()); localStream=null; hide('callScreen'); show('chatScreen'); };
+  function show(id){document.getElementById(id).classList.remove('hidden');}
+  function hide(id){document.getElementById(id).classList.add('hidden');}
+  window.showToast = function(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),3000);}
+}
+</script>
+</body>
+</html>
